@@ -1,0 +1,112 @@
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#define LED PB3 
+#define BUTTON PD2
+#define notpressed 0
+#define pressbounce 1
+#define pressed 2
+#define releasebounce 3
+volatile unsigned char buttonstate = notpressed;
+
+
+ISR (INT0_vect)   //suitable vector to enable the external interrupt 
+{
+
+if (buttonstate == notpressed)
+{
+TCCR1B |= (1 << CS12);     //start the timer 
+buttonstate = pressbounce;
+}
+ else if (buttonstate == pressed)
+{
+PORTB ^= (1 << LED);  //toggle the led state 2
+TCCR1B |= (1 << CS12);  //start timer okko0
+TCCR1B &= ~((1 << CS10) | (1 << CS11));
+buttonstate = releasebounce;
+}
+
+} //end of ISR external interrupt for the button 
+
+
+
+ISR(TIMER1_COMPA_vect)
+{
+if (buttonstate == pressbounce)
+{
+buttonstate = pressed;
+TCCR1B=0;     //stop the timer 
+}
+ else if (buttonstate == releasebounce)
+{
+
+buttonstate = notpressed;
+TCCR1B=0;
+
+}
+}
+
+
+void initPortsBD(void)
+{
+
+DDRB |= (1<<LED);
+DDRD &= ~(1 << BUTTON);
+PORTD |= (1 << BUTTON);
+
+}
+
+void setUpTimer(void)   //initalize timer in normal mode 
+{
+TCCR1A = 0;
+TCCR1B = 0;
+cli();
+TCNT1 = 0;
+sei();
+}
+
+void initTimerInterrupts(void)
+{
+cli;
+TIMSK1=0;
+TIMSK|=(1<<OCIE1A);
+TCNT1=0;
+OCR1A=20000;
+sei();
+}
+
+
+
+void setUpInterrupts(void)   //second enabling of the external interrupt 
+{
+EICRA=0;
+EIMSK=0;
+EIMSK |= (1 << INT0); //turn on INT0
+EICRA |= (1 << ISC00); //falling & rising edge
+}
+
+
+int main(void)
+{
+
+unsigned int x = 0;
+
+
+initPortsBD();
+
+PORTB |= (1 << LED);
+setUpTimer();
+initTimerInterrupts();
+cli ();
+setUpInterrupts();
+sei();
+
+while(1)
+{
+x=1;
+x+=1;
+
+}
+
+return 0;
+
+}  //endof main 
